@@ -4,9 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="67e1a0da-6361-440c-9934-fd0ef991c696" name="Changes" comment="Main has been cleared.">
-      <change afterPath="$PROJECT_DIR$/qr.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/StayScreenedAndSafe.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/StayScreenedAndSafe.iml" afterDir="false" />
+    <list default="true" id="67e1a0da-6361-440c-9934-fd0ef991c696" name="Changes" comment="Trial for 2FA.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/2FA-Authentication.py" beforeDir="false" afterPath="$PROJECT_DIR$/2FA-Authentication.py" afterDir="false" />
     </list>
@@ -122,7 +120,7 @@
       <workItem from="1710191814584" duration="40000" />
       <workItem from="1710267400942" duration="3268000" />
       <workItem from="1710502754259" duration="897000" />
-      <workItem from="1710594200115" duration="4893000" />
+      <workItem from="1710594200115" duration="5073000" />
     </task>
     <task id="LOCAL-00001" summary="Project Created">
       <option name="closed" value="true" />
@@ -172,7 +170,15 @@
       <option name="project" value="LOCAL" />
       <updated>1710596322890</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="Trial for 2FA.">
+      <option name="closed" value="true" />
+      <created>1710600887089</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1710600887089</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -195,7 +201,8 @@
     <MESSAGE value="Bugs fixed." />
     <MESSAGE value="New Files Added." />
     <MESSAGE value="Main has been cleared." />
-    <option name="LAST_COMMIT_MESSAGE" value="Main has been cleared." />
+    <MESSAGE value="Trial for 2FA." />
+    <option name="LAST_COMMIT_MESSAGE" value="Trial for 2FA." />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/StayScreenedAndSafe$main.coverage" NAME="main Coverage Results" MODIFIED="1710600244145" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
