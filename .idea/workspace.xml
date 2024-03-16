@@ -4,10 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="67e1a0da-6361-440c-9934-fd0ef991c696" name="Changes" comment="YOLO Added">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-    </list>
+    <list default="true" id="67e1a0da-6361-440c-9934-fd0ef991c696" name="Changes" comment="YOLO Added" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -104,7 +101,7 @@
       <workItem from="1710176342620" duration="599000" />
       <workItem from="1710191814584" duration="40000" />
       <workItem from="1710267400942" duration="3268000" />
-      <workItem from="1710502754259" duration="2360000" />
+      <workItem from="1710502754259" duration="897000" />
     </task>
     <task id="LOCAL-00001" summary="Project Created">
       <option name="closed" value="true" />
@@ -130,15 +127,7 @@
       <option name="project" value="LOCAL" />
       <updated>1710503583832</updated>
     </task>
-    <task id="LOCAL-00004" summary="YOLO Added">
-      <option name="closed" value="true" />
-      <created>1710503682059</created>
-      <option name="number" value="00004" />
-      <option name="presentableId" value="LOCAL-00004" />
-      <option name="project" value="LOCAL" />
-      <updated>1710503682059</updated>
-    </task>
-    <option name="localTasksCounter" value="5" />
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
