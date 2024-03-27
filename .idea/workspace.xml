@@ -4,9 +4,15 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
+<<<<<<< Updated upstream
     <list default="true" id="67e1a0da-6361-440c-9934-fd0ef991c696" name="Changes" comment="Trial for 2FA.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/2FA-Authentication.py" beforeDir="false" afterPath="$PROJECT_DIR$/2FA-Authentication.py" afterDir="false" />
+=======
+    <list default="true" id="67e1a0da-6361-440c-9934-fd0ef991c696" name="Changes" comment="New Files Added.">
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+>>>>>>> Stashed changes
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -58,12 +64,19 @@
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
+<<<<<<< Updated upstream
     "Python.2FA-Authentication.executor": "Run",
     "Python.main.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "Sami-Uysal",
     "ignore.virus.scanning.warn.message": "true",
     "last_opened_file_path": "D:/Projects/Python/point-e-main",
+=======
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "Mete-HAN",
+    "ignore.virus.scanning.warn.message": "true",
+    "last_opened_file_path": "C:/Users/aksar/Documents/Projects/StayScreenedAndSafe",
+>>>>>>> Stashed changes
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.stylelint": "true",
     "node.js.detected.package.tslint": "true",
@@ -71,6 +84,10 @@
     "node.js.selected.package.stylelint": "",
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
+<<<<<<< Updated upstream
+=======
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable",
+>>>>>>> Stashed changes
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
@@ -120,7 +137,12 @@
       <workItem from="1710191814584" duration="40000" />
       <workItem from="1710267400942" duration="3268000" />
       <workItem from="1710502754259" duration="897000" />
+<<<<<<< Updated upstream
       <workItem from="1710594200115" duration="5073000" />
+=======
+      <workItem from="1710594200115" duration="2004000" />
+      <workItem from="1710599495270" duration="1671000" />
+>>>>>>> Stashed changes
     </task>
     <task id="LOCAL-00001" summary="Project Created">
       <option name="closed" value="true" />
