@@ -240,3 +240,4 @@ cython_debug/
 #.idea/
 
 .idea/copilot
+.idea/misc.xml
