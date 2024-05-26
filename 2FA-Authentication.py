@@ -13,6 +13,7 @@ def generate_qr_code(username, key):
         issuer_name='StayScreenedAndSafe')
 
     # QR kodunu kaydet
+    os.makedirs("QR", exist_ok=True)
     qrcode.make(uri).save(os.path.join("QR", f"qr_{username}.png"))
 
 def display_qr(username):
@@ -24,12 +25,21 @@ def display_qr(username):
     else:
         print("Kullanıcı adı bulunamadı.")
 
-def verify_code(username, key):
+def verify_code():
+    username = username_entry.get()
+    key = users.get(username)
+    if not key:
+        print("Kullanıcı adı bulunamadı.")
+        return
+
     totp = pyotp.TOTP(key)
     code = code_entry.get()  # Kod girişi için entry'den oku
-    return totp.verify(code)
+    if totp.verify(code):
+        print("Giriş başarılı!")
+    else:
+        print("Kod hatalı. Tekrar deneyiniz.")
 
-def generate_and_verify():
+def generate_qr():
     username = username_entry.get()
     if username not in users:
         key = pyotp.random_base32()
@@ -39,11 +49,12 @@ def generate_and_verify():
         print(f"Kullanıcı '{username}' için QR kodu oluşturuldu.")
     else:
         display_qr(username)
+        print(f"Kullanıcı '{username}' için QR kodu gösterildi.")
 
-    if verify_code(username, users[username]):
-        print("Giriş başarılı!")
-    else:
-        print("Kod hatalı. Tekrar deneyiniz.")
+    # Doğrulama arayüzü göster
+    code_label.pack()
+    code_entry.pack()
+    verify_button.pack()
 
 # Ana pencere oluşturma
 root = tk.Tk()
@@ -53,7 +64,7 @@ root.title("2FA Uygulaması")
 username_label = ttk.Label(root, text="Kullanıcı Adı:")
 username_entry = ttk.Entry(root)
 
-# Kod girişi
+# Kod girişi (başlangıçta gizli)
 code_label = ttk.Label(root, text="2FA Kodu:")
 code_entry = ttk.Entry(root)
 
@@ -61,15 +72,14 @@ code_entry = ttk.Entry(root)
 qr_label = ttk.Label(root)
 
 # Butonlar
-generate_button = ttk.Button(root, text="QR Kod Oluştur/Göster", command=generate_and_verify)
+generate_button = ttk.Button(root, text="QR Kod Oluştur/Göster", command=generate_qr)
+verify_button = ttk.Button(root, text="Kodu Doğrula", command=verify_code)
 
 # Arayüz öğelerini pencere yerleştirme
 username_label.pack()
 username_entry.pack()
-code_label.pack()
-code_entry.pack()
-qr_label.pack()
 generate_button.pack()
+qr_label.pack()
 
 # Ana döngüyü başlatma
 root.mainloop()
