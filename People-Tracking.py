@@ -3,7 +3,9 @@ import ultralytics
 from ultralytics import YOLO
 from deepface import DeepFace
 
-DeepFace.verify(img1_path=, img2_path=)
+from main import img1_path, img2_path
+
+DeepFace.verify(img1_path, img2_path)
 
 
 ultralytics.checks()
