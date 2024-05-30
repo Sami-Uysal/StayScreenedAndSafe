@@ -10,7 +10,7 @@ DeepFace.verify(img1_path, img2_path)
 
 ultralytics.checks()
 
- # Load a model
+# Load a model
 model = YOLO("yolov8n.yaml")  # build a new model from scratch
 model = YOLO("yolov8n.pt")  # load a pretrained model (recommended for training)
 

@@ -8,7 +8,6 @@ def face_detection(img1_path, img2_path):
         sonuc = response["verified"]
         if sonuc:
             print("yüz tanıma başarılı")
-            import arayuz
 
 
         else:
