@@ -1,8 +1,11 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QWidget, QVBoxLayout, QLabel, QLineEdit, \
-    QPushButton, QTabWidget
-from PyQt5.QtGui import QFont, QPalette, QColor
+
+from PyQt5.QtGui import QPixmap
+from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QWidget, QVBoxLayout, QHBoxLayout, QLabel, \
+    QLineEdit, QPushButton, QStackedWidget
+from PyQt5.QtCore import Qt
 from two_factor_auth import generate_qr, verify_code
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -10,57 +13,170 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("StayScreenedAndSafe")
         self.setGeometry(100, 100, 800, 600)
 
-        self.tabs = QTabWidget()
-        self.setCentralWidget(self.tabs)
+        main_layout = QVBoxLayout()
 
-        self.tab_2fa = QWidget()
-        self.tab_face = QWidget()
+        # Logo ekle
+        self.logo_label = QLabel()
+        self.logo_label.setPixmap(QPixmap("sssLogo.png").scaled(400, 200, Qt.KeepAspectRatio))
+        self.logo_label.setAlignment(Qt.AlignCenter)
 
-        self.tabs.addTab(self.tab_2fa, "2FA Doğrulama")
-        self.tabs.addTab(self.tab_face, "Yüz Tanıma")
+        self.stacked_widget = QStackedWidget()
 
+        main_layout.addWidget(self.logo_label)
+        main_layout.addWidget(self.stacked_widget)
+
+        central_widget = QWidget()
+        central_widget.setLayout(main_layout)
+        self.setCentralWidget(central_widget)
+
+        self.setup_login_tab()
+        self.setup_register_tab()
         self.setup_2fa_tab()
         self.setup_face_tab()
 
         self.apply_styles()
 
-    def setup_2fa_tab(self):
+    def setup_login_tab(self):
+        self.login_widget = QWidget()
         layout = QVBoxLayout()
 
+        user_layout = QHBoxLayout()
+        self.login_username_label = QLabel("Kullanıcı Adı:")
+        self.login_username_entry = QLineEdit()
+        user_layout.addWidget(self.login_username_label)
+        user_layout.addWidget(self.login_username_entry)
+
+        pass_layout = QHBoxLayout()
+        self.login_password_label = QLabel("Parola:")
+        self.login_password_entry = QLineEdit()
+        self.login_password_entry.setEchoMode(QLineEdit.Password)
+        pass_layout.addWidget(self.login_password_label)
+        pass_layout.addWidget(self.login_password_entry)
+
+        button_layout = QHBoxLayout()
+        self.login_button = QPushButton("Giriş Yap")
+        self.login_button.clicked.connect(self.login)
+        self.go_to_register_button = QPushButton("Kayıt Ol")
+        self.go_to_register_button.clicked.connect(self.show_register_tab)
+        button_layout.addWidget(self.login_button)
+        button_layout.addWidget(self.go_to_register_button)
+
+        layout.addLayout(user_layout)
+        layout.addLayout(pass_layout)
+        layout.addLayout(button_layout)
+
+        self.center_widgets(layout)
+        self.login_widget.setLayout(layout)
+        self.stacked_widget.addWidget(self.login_widget)
+
+    def setup_register_tab(self):
+        self.register_widget = QWidget()
+        layout = QVBoxLayout()
+
+        user_layout = QHBoxLayout()
+        self.register_username_label = QLabel("Kullanıcı Adı:")
+        self.register_username_entry = QLineEdit()
+        user_layout.addWidget(self.register_username_label)
+        user_layout.addWidget(self.register_username_entry)
+
+        email_layout = QHBoxLayout()
+        self.register_email_label = QLabel("Email:")
+        self.register_email_entry = QLineEdit()
+        email_layout.addWidget(self.register_email_label)
+        email_layout.addWidget(self.register_email_entry)
+
+        pass_layout = QHBoxLayout()
+        self.register_password_label = QLabel("Parola:")
+        self.register_password_entry = QLineEdit()
+        self.register_password_entry.setEchoMode(QLineEdit.Password)
+        pass_layout.addWidget(self.register_password_label)
+        pass_layout.addWidget(self.register_password_entry)
+
+        button_layout = QHBoxLayout()
+        self.register_button = QPushButton("Kayıt Ol")
+        self.register_button.clicked.connect(self.register)
+        self.go_to_login_button = QPushButton("Giriş Yap")
+        self.go_to_login_button.clicked.connect(self.show_login_tab)
+        button_layout.addWidget(self.register_button)
+        button_layout.addWidget(self.go_to_login_button)
+
+        layout.addLayout(user_layout)
+        layout.addLayout(email_layout)
+        layout.addLayout(pass_layout)
+        layout.addLayout(button_layout)
+
+        self.center_widgets(layout)
+        self.register_widget.setLayout(layout)
+        self.stacked_widget.addWidget(self.register_widget)
+
+    def setup_2fa_tab(self):
+        self.tab_2fa = QWidget()
+        layout = QVBoxLayout()
+
+        user_layout = QHBoxLayout()
         self.username_label = QLabel("Kullanıcı Adı:")
         self.username_entry = QLineEdit()
-        self.generate_button = QPushButton("QR Kod Oluştur/Göster")
+        user_layout.addWidget(self.username_label)
+        user_layout.addWidget(self.username_entry)
+
         self.qr_label = QLabel()
+
+        code_layout = QHBoxLayout()
         self.code_label = QLabel("2FA Kodu:")
         self.code_entry = QLineEdit()
-        self.verify_button = QPushButton("Kodu Doğrula")
+        code_layout.addWidget(self.code_label)
+        code_layout.addWidget(self.code_entry)
 
+        button_layout = QHBoxLayout()
+        self.generate_button = QPushButton("QR Kod Oluştur/Göster")
         self.generate_button.clicked.connect(self.generate_qr)
+        self.verify_button = QPushButton("Kodu Doğrula")
         self.verify_button.clicked.connect(self.verify_code)
+        button_layout.addWidget(self.generate_button)
+        button_layout.addWidget(self.verify_button)
 
-        layout.addWidget(self.username_label)
-        layout.addWidget(self.username_entry)
-        layout.addWidget(self.generate_button)
+        layout.addLayout(user_layout)
         layout.addWidget(self.qr_label)
-        layout.addWidget(self.code_label)
-        layout.addWidget(self.code_entry)
-        layout.addWidget(self.verify_button)
+        layout.addLayout(code_layout)
+        layout.addLayout(button_layout)
 
+        self.center_widgets(layout)
         self.tab_2fa.setLayout(layout)
+        self.stacked_widget.addWidget(self.tab_2fa)
 
     def setup_face_tab(self):
+        self.tab_face = QWidget()
         layout = QVBoxLayout()
 
+        button_layout = QHBoxLayout()
         self.face_register_button = QPushButton("Yüz Kayıt")
         self.face_verify_button = QPushButton("Yüz Doğrulama")
-
         self.face_register_button.clicked.connect(self.face_register)
         self.face_verify_button.clicked.connect(self.face_verify)
+        button_layout.addWidget(self.face_register_button)
+        button_layout.addWidget(self.face_verify_button)
 
-        layout.addWidget(self.face_register_button)
-        layout.addWidget(self.face_verify_button)
+        layout.addLayout(button_layout)
 
+        self.center_widgets(layout)
         self.tab_face.setLayout(layout)
+        self.stacked_widget.addWidget(self.tab_face)
+
+    def register(self):
+        username = self.register_username_entry.text()
+        email = self.register_email_entry.text()
+        password = self.register_password_entry.text()
+        QMessageBox.information(self, "Kayıt Başarılı", f"Kullanıcı {username} başarıyla kaydedildi!")
+        self.stacked_widget.setCurrentWidget(self.login_widget)
+
+    def login(self):
+        username = self.login_username_entry.text()
+        password = self.login_password_entry.text()
+        if username == "user" and password == "pass":  # Basit kontrol, gerçek uygulamada veritabanı kullanılmalı
+            QMessageBox.information(self, "Giriş Başarılı", "Başarıyla giriş yaptınız!")
+            self.stacked_widget.setCurrentWidget(self.tab_face)
+        else:
+            QMessageBox.warning(self, "Giriş Başarısız", "Kullanıcı adı veya parola yanlış!")
 
     def generate_qr(self):
         username = self.username_entry.text()
@@ -78,9 +194,21 @@ class MainWindow(QMainWindow):
 
     def face_register(self):
         QMessageBox.information(self, "Bilgi", "Yüzünüz başarıyla kaydedildi")
+        self.stacked_widget.setCurrentWidget(self.tab_2fa)
 
     def face_verify(self):
         QMessageBox.information(self, "Bilgi", "Yüz doğrulama işlemi başlatıldı")
+
+    def show_register_tab(self):
+        self.stacked_widget.setCurrentWidget(self.register_widget)
+
+    def show_login_tab(self):
+        self.stacked_widget.setCurrentWidget(self.login_widget)
+
+    def center_widgets(self, layout):
+        layout.setAlignment(Qt.AlignCenter)
+        layout.setContentsMargins(50, 50, 50, 50)
+        layout.setSpacing(20)
 
     def apply_styles(self):
         self.setStyleSheet("""
@@ -93,7 +221,7 @@ class MainWindow(QMainWindow):
             }
             QLineEdit {
                 font-size: 14px;
-                padding: 5px;
+                padding: 8px;
                 border: 1px solid #cccccc;
                 border-radius: 5px;
             }
@@ -108,18 +236,11 @@ class MainWindow(QMainWindow):
             QPushButton:hover {
                 background-color: #005a9e;
             }
-            QTabWidget::pane {
-                border: 1px solid #cccccc;
-            }
-            QTabBar::tab {
-                background: #e0e0e0;
-                padding: 10px;
-            }
-            QTabBar::tab:selected {
-                background: #ffffff;
-                border-bottom: 2px solid #0078d7;
+            QHBoxLayout, QVBoxLayout {
+                margin: 20px;
             }
         """)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
