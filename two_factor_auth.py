@@ -1,56 +1,71 @@
 import os
 import pyotp
 import qrcode
-import mysqlconnect
 from mysql.connector import Error
+import mysqlconnect
 from PyQt5.QtGui import QPixmap
 
-def fetch_users_from_db():
+# Kullanıcıların ve onların gizli anahtarlarının veritabanından alınmasını sağlayan fonksiyon
+def fetch_user_secret_key(username):
     connection = mysqlconnect.create_connection()
     if connection is None:
-        return {}
+        return None
     try:
         cursor = connection.cursor()
-        cursor.execute("SELECT u.username, t.secret_key FROM users u JOIN two_factor_data t ON u.id = t.user_id")
-        result = cursor.fetchall()
-        users = {row[0]: row[1] for row in result}
-        cursor.close()
-        connection.close()
-        return users
+        cursor.execute(
+            "SELECT t.secret_key FROM users u JOIN two_factor_data t ON u.id = t.user_id WHERE u.username = %s",
+            (username,))
+        result = cursor.fetchone()
+        if result:
+            secret_key = result[0]
+            return secret_key
+        else:
+            return None
     except Error as e:
-        print(f"Error fetching users: {e}")
-        return {}
+        print(f"Kullanıcı gizli anahtarı alınırken hata oluştu: {e}")
+        return None
+    finally:
+        if connection.is_connected():
+            connection.close()
 
-def add_user_to_db(username, key):
+# Kullanıcı için gizli anahtar oluşturan ve veritabanına kaydeden fonksiyon
+def save_secret_key(username, key):
     connection = mysqlconnect.create_connection()
     if connection is None:
-        return False
+        return None
     try:
         cursor = connection.cursor()
-        cursor.execute("INSERT INTO users (username, password, mail) VALUES (%s, %s)", (username, "123456", username+"@gmail.com"))  # Varsayılan bir şifre kullanın
-        user_id = cursor.lastrowid
+        cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+        user_id = cursor.fetchone()[0]
         cursor.execute("INSERT INTO two_factor_data (user_id, secret_key) VALUES (%s, %s)", (user_id, key))
         connection.commit()
-        cursor.close()
-        connection.close()
         return True
     except Error as e:
-        print(f"Error adding user: {e}")
+        print(f"Gizli anahtar kaydedilirken hata oluştu: {e}")
         return False
+    finally:
+        if connection.is_connected():
+            connection.close()
 
-users = fetch_users_from_db()
+# Bir kullanıcı için QR kodu oluşturan fonksiyon
+def generate_qr_code(username):
+    key = fetch_user_secret_key(username)
+    if key:
+        # Gizli anahtar kullanılarak TOTP (Zaman Temelli Tek Kullanımlık Şifre) için URI oluşturma
+        uri = pyotp.totp.TOTP(key).provisioning_uri(
+            name=username,
+            issuer_name='StayScreenedAndSafe')
 
-def generate_qr_code(username, key):
-    uri = pyotp.totp.TOTP(key).provisioning_uri(
-        name=username,
-        issuer_name='StayScreenedAndSafe')
+        # QR kodu resmini dosyaya kaydetme
+        os.makedirs("QR", exist_ok=True)
+        qrcode.make(uri).save(os.path.join("QR", f"qr_{username}.png"))
+        return True, f"{username} için QR kodu başarıyla oluşturuldu."
+    else:
+        return False, f"QR kodu oluşturma başarısız. {username} kullanıcısı bulunamadı."
 
-    # QR kodunu kaydet
-    os.makedirs("QR", exist_ok=True)
-    qrcode.make(uri).save(os.path.join("QR", f"qr_{username}.png"))
-
+# Bir kullanıcının QR kodunu QLabel içinde gösteren fonksiyon
 def display_qr(username, qr_label):
-    key = users.get(username)
+    key = fetch_user_secret_key(username)
     if key:
         qr_image_path = os.path.join("QR", f"qr_{username}.png")
         pixmap = QPixmap(qr_image_path)
@@ -59,8 +74,9 @@ def display_qr(username, qr_label):
         qr_label.clear()
         qr_label.setText("Kullanıcı adı bulunamadı.")
 
+# Kullanıcının girdiği kodu, kayıtlı gizli anahtarıyla karşılaştırıp doğrulayan fonksiyon
 def verify_code(username, code):
-    key = users.get(username)
+    key = fetch_user_secret_key(username)
     if not key:
         return False, "Kullanıcı adı bulunamadı."
 
@@ -70,16 +86,19 @@ def verify_code(username, code):
     else:
         return False, "Kod hatalı. Tekrar deneyiniz."
 
-def generate_qr(username, qr_label):
-    if username not in users:
-        key = pyotp.random_base32()
-        if add_user_to_db(username, key):
-            users[username] = key
-            generate_qr_code(username, key)
-            display_qr(username, qr_label)
-            return f"Kullanıcı '{username}' için QR kodu oluşturuldu."
-        else:
-            return "Kullanıcı eklenirken bir hata oluştu."
-    else:
-        display_qr(username, qr_label)
-        return f"Kullanıcı '{username}' için QR kodu gösterildi."
+# Kullanıcı adı verilen bir kullanıcının bilgilerini döndüren fonksiyon
+def get_user_info(username):
+    connection = mysqlconnect.create_connection()
+    if connection is None:
+        return None
+    try:
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+        user = cursor.fetchone()
+        return user
+    except Error as e:
+        print(f"Kullanıcı bilgilerini alırken hata oluştu: {e}")
+        return None
+    finally:
+        if connection.is_connected():
+            connection.close()

@@ -1,17 +1,24 @@
 import sys
-
+import pyotp
+from mysql.connector import Error
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QWidget, QVBoxLayout, QHBoxLayout, QLabel, \
     QLineEdit, QPushButton, QStackedWidget
 from PyQt5.QtCore import Qt
-from two_factor_auth import generate_qr, verify_code
-
+from two_factor_auth import generate_qr_code, display_qr, verify_code, save_secret_key
+import mysqlconnect
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("StayScreenedAndSafe")
         self.setGeometry(100, 100, 800, 600)
+
+        # MySQL bağlantısını oluştur
+        self.connection = mysqlconnect.create_connection()
+        if self.connection is None:
+            QMessageBox.critical(self, "Bağlantı Hatası", "MySQL veritabanına bağlanılamadı.")
+            sys.exit(1)
 
         main_layout = QVBoxLayout()
 
@@ -113,13 +120,8 @@ class MainWindow(QMainWindow):
         self.tab_2fa = QWidget()
         layout = QVBoxLayout()
 
-        user_layout = QHBoxLayout()
-        self.username_label = QLabel("Kullanıcı Adı:")
-        self.username_entry = QLineEdit()
-        user_layout.addWidget(self.username_label)
-        user_layout.addWidget(self.username_entry)
-
-        self.qr_label = QLabel()
+        self.qr_label_2fa = QLabel()
+        self.qr_label_2fa.setAlignment(Qt.AlignCenter)  # Ortala
 
         code_layout = QHBoxLayout()
         self.code_label = QLabel("2FA Kodu:")
@@ -135,8 +137,7 @@ class MainWindow(QMainWindow):
         button_layout.addWidget(self.generate_button)
         button_layout.addWidget(self.verify_button)
 
-        layout.addLayout(user_layout)
-        layout.addWidget(self.qr_label)
+        layout.addWidget(self.qr_label_2fa)
         layout.addLayout(code_layout)
         layout.addLayout(button_layout)
 
@@ -148,15 +149,14 @@ class MainWindow(QMainWindow):
         self.tab_face = QWidget()
         layout = QVBoxLayout()
 
-        button_layout = QHBoxLayout()
         self.face_register_button = QPushButton("Yüz Kayıt")
-        self.face_verify_button = QPushButton("Yüz Doğrulama")
         self.face_register_button.clicked.connect(self.face_register)
-        self.face_verify_button.clicked.connect(self.face_verify)
-        button_layout.addWidget(self.face_register_button)
-        button_layout.addWidget(self.face_verify_button)
 
-        layout.addLayout(button_layout)
+        self.face_verify_button = QPushButton("Yüz Doğrulama")
+        self.face_verify_button.clicked.connect(self.face_verify)
+
+        layout.addWidget(self.face_register_button)
+        layout.addWidget(self.face_verify_button)
 
         self.center_widgets(layout)
         self.tab_face.setLayout(layout)
@@ -166,33 +166,64 @@ class MainWindow(QMainWindow):
         username = self.register_username_entry.text()
         email = self.register_email_entry.text()
         password = self.register_password_entry.text()
-        QMessageBox.information(self, "Kayıt Başarılı", f"Kullanıcı {username} başarıyla kaydedildi!")
-        self.stacked_widget.setCurrentWidget(self.login_widget)
+
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("INSERT INTO users (username, password, email) VALUES (%s, %s, %s)", (username, password, email))
+            self.connection.commit()
+            QMessageBox.information(self, "Kayıt Başarılı", f"Kullanıcı {username} başarıyla kaydedildi!")
+            self.stacked_widget.setCurrentWidget(self.login_widget)
+            cursor.close()
+
+        except Error as e:
+            QMessageBox.warning(self, "Veritabanı Hatası", f"Hata: {e}")
 
     def login(self):
         username = self.login_username_entry.text()
         password = self.login_password_entry.text()
-        if username == "user" and password == "pass":  # Basit kontrol, gerçek uygulamada veritabanı kullanılmalı
-            QMessageBox.information(self, "Giriş Başarılı", "Başarıyla giriş yaptınız!")
-            self.stacked_widget.setCurrentWidget(self.tab_face)
-        else:
-            QMessageBox.warning(self, "Giriş Başarısız", "Kullanıcı adı veya parola yanlış!")
+        self.logged_in_username = username  # Kullanıcı adını burada saklayın
+
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("SELECT * FROM users WHERE username = %s AND password = %s", (username, password))
+            user = cursor.fetchone()
+
+            if user:
+                QMessageBox.information(self, "Giriş Başarılı", "Başarıyla giriş yaptınız!")
+                cursor.execute("SELECT * FROM two_factor_data WHERE user_id = %s", (user[0],))
+                two_fa_data = cursor.fetchone()
+
+                if not two_fa_data:
+                    key = pyotp.random_base32()
+                    save_secret_key(username, key)
+                    generate_qr_code(username)
+                display_qr(username, self.qr_label_2fa)
+                self.stacked_widget.setCurrentWidget(self.tab_2fa)
+            else:
+                QMessageBox.warning(self, "Giriş Başarısız", "Kullanıcı adı veya parola yanlış!")
+
+            cursor.close()
+
+        except Error as e:
+            QMessageBox.warning(self, "Veritabanı Hatası", f"Hata: {e}")
 
     def generate_qr(self):
-        username = self.username_entry.text()
-        message = generate_qr(username, self.qr_label)
-        QMessageBox.information(self, "Bilgi", message)
+        username = self.logged_in_username  # Giriş yapan kullanıcı adını kullanın
+        display_qr(username, self.qr_label_2fa)
 
     def verify_code(self):
-        username = self.username_entry.text()
+        username = self.logged_in_username  # Giriş yapan kullanıcı adını kullanın
         code = self.code_entry.text()
         success, message = verify_code(username, code)
         if success:
             QMessageBox.information(self, "Başarılı", message)
+            self.stacked_widget.setCurrentWidget(self.tab_face)
         else:
             QMessageBox.warning(self, "Hata", message)
 
     def face_register(self):
+        # Burada yüz kaydı işlemleri yapılabilir, örneğin veritabanına kaydetme işlemi
+
         QMessageBox.information(self, "Bilgi", "Yüzünüz başarıyla kaydedildi")
         self.stacked_widget.setCurrentWidget(self.tab_2fa)
 
@@ -212,36 +243,34 @@ class MainWindow(QMainWindow):
 
     def apply_styles(self):
         self.setStyleSheet("""
-            QMainWindow {
-                background-color: #f0f0f0;
-            }
-            QLabel {
-                font-size: 16px;
-                color: #333333;
-            }
-            QLineEdit {
-                font-size: 14px;
-                padding: 8px;
-                border: 1px solid #cccccc;
-                border-radius: 5px;
-            }
-            QPushButton {
-                font-size: 14px;
-                padding: 10px;
-                border: 1px solid #0078d7;
-                border-radius: 5px;
-                background-color: #0078d7;
-                color: #ffffff;
-            }
-            QPushButton:hover {
-                background-color: #005a9e;
-            }
-            QHBoxLayout, QVBoxLayout {
-                margin: 20px;
-            }
-        """)
-
-
+                        QMainWindow {
+                            background-color: #f0f0f0;
+                        }
+                        QLabel {
+                            font-size: 16px;
+                            color: #333333;
+                        }
+                        QLineEdit {
+                            font-size: 14px;
+                            padding: 8px;
+                            border: 1px solid #cccccc;
+                            border-radius: 5px;
+                        }
+                        QPushButton {
+                            font-size: 14px;
+                            padding: 10px;
+                            border: 1px solid #0078d7;
+                            border-radius: 5px;
+                            background-color: #0078d7;
+                            color: #ffffff;
+                        }
+                        QPushButton:hover {
+                            background-color: #005a9e;
+                        }
+                        QHBoxLayout, QVBoxLayout {
+                            margin: 20px;
+                        }
+                    """)
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()
