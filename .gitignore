@@ -242,3 +242,5 @@ cython_debug/
 .idea/copilot
 .idea/misc.xml
 .idea/material_theme_project_new.xml
+
+mysql.py
