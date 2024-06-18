@@ -167,6 +167,10 @@ class MainWindow(QMainWindow):
         email = self.register_email_entry.text()
         password = self.register_password_entry.text()
 
+        if not username or not email or not password:
+            QMessageBox.warning(self, "Hata", "Lütfen tüm alanları doldurun.")
+            return
+
         try:
             cursor = self.connection.cursor()
             cursor.execute("INSERT INTO users (username, password, email) VALUES (%s, %s, %s)", (username, password, email))
@@ -181,7 +185,12 @@ class MainWindow(QMainWindow):
     def login(self):
         username = self.login_username_entry.text()
         password = self.login_password_entry.text()
-        self.logged_in_username = username  # Kullanıcı adını burada saklayın
+
+        if not username or not password:
+            QMessageBox.warning(self, "Hata", "Kullanıcı adı ve parola boş bırakılamaz.")
+            return
+
+        self.logged_in_username = username
 
         try:
             cursor = self.connection.cursor()
@@ -208,11 +217,11 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Veritabanı Hatası", f"Hata: {e}")
 
     def generate_qr(self):
-        username = self.logged_in_username  # Giriş yapan kullanıcı adını kullanın
+        username = self.logged_in_username
         display_qr(username, self.qr_label_2fa)
 
     def verify_code(self):
-        username = self.logged_in_username  # Giriş yapan kullanıcı adını kullanın
+        username = self.logged_in_username
         code = self.code_entry.text()
         success, message = verify_code(username, code)
         if success:
