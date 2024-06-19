@@ -9,7 +9,6 @@ def face_detection(img1_path, img2_path):
         if sonuc:
             print("yüz tanıma başarılı")
 
-
         else:
             print("Yüz tanıma başarısız oldu, lütfen tekrar deneyin")
     except Exception as e:
