@@ -1,17 +1,34 @@
-from deepface import DeepFace
+import cv2
 
 
 
-def face_detection(img1_path, img2_path):
-    try:
-        response = DeepFace.verify(img1_path, img2_path)
-        sonuc = response["verified"]
-        if sonuc:
-            print("yüz tanıma başarılı")
 
-        else:
-            print("Yüz tanıma başarısız oldu, lütfen tekrar deneyin")
-    except Exception as e:
-        print("Hata:", e)
-        print("Yüz tanıma işlemi gerçekleştirilemedi")
+#-------------------------------------------web cam ile foto alma-----------------------------------------------------------------------------
+def foto_cektir(adi):
+    dizin = "datasets/coco128/images/test/"
+    kamera = cv2.VideoCapture(0)
 
+
+    ret, goruntu = kamera.read()
+
+    if ret:
+
+        cv2.imwrite(f"{dizin}/{adi}.jpg", goruntu)
+        print(f"{adi}.jpg adlı dosya {dizin} dizinine kaydedildi.")
+    else:
+        print("Hata: Görüntü alınamadı.")
+
+    # Kamerayı kapat
+    kamera.release()
+
+
+def yuz_kayit():
+    kamera = cv2.VideoCapture(0)
+    ret, goruntu = kamera.read()
+    kamera.release()
+
+    if ret:
+        return goruntu
+    else:
+        print("Hata: Görüntü alınamadı.")
+        return None
