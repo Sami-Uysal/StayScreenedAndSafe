@@ -1,17 +1,16 @@
 import base64
 import sys
 import pyotp
+import os
 from mysql.connector import Error
 from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QWidget, QVBoxLayout, QHBoxLayout, QLabel, \
     QLineEdit, QPushButton, QStackedWidget
 from PyQt5.QtCore import Qt
-
-import faceVerified
 from two_factor_auth import generate_qr_code, display_qr, verify_code, save_secret_key
 import mysqlconnect
 import cv2
-from faceVerified import foto_cektir, yuz_kayit
+from faceVerified import yuz_kayit, yuz_dogrula
 import numpy as np
 
 class MainWindow(QMainWindow):
@@ -164,7 +163,7 @@ class MainWindow(QMainWindow):
         self.show_face_image_button = QPushButton("Kayıtlı Yüzü Göster")
         self.show_face_image_button.clicked.connect(self.show_face_image)
 
-        self.show_face_label = QLabel()  # Yüz görüntüsünün gösterileceği label
+        self.show_face_label = QLabel()
 
         self.logout_button = QPushButton("Çıkış Yap")
         self.logout_button.clicked.connect(self.logout)
@@ -255,19 +254,9 @@ class MainWindow(QMainWindow):
         username = self.logged_in_username
 
         # Yüz fotoğrafı çek
-        goruntu = yuz_kayit()
+        temp_image_path = yuz_kayit(username)
 
-        if goruntu is not None:
-            # Görüntüyü JPEG formatında sıkıştır
-            ret, buffer = cv2.imencode('.jpg', goruntu)
-            if not ret:
-                QMessageBox.warning(self, "Hata", "Görüntü sıkıştırılamadı.")
-                return
-
-            # Sıkıştırılmış görüntüyü base64 olarak kodla
-            image_data = base64.b64encode(buffer).decode('utf-8')
-            image_path = f"datasets/coco128/images/test/{username}.jpg"
-
+        if temp_image_path is not None:
             try:
                 cursor = self.connection.cursor()
 
@@ -275,25 +264,53 @@ class MainWindow(QMainWindow):
                 cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
                 user_id = cursor.fetchone()[0]
 
-                # Önceden kaydedilmiş verileri sil
-                cursor.execute("DELETE FROM face_data WHERE user_id = %s", (user_id,))
-                self.connection.commit()
-
                 # Yüz verisini veritabanına kaydet
-                cursor.execute(
-                    "INSERT INTO face_data (user_id, image_path, image) VALUES (%s, %s, %s)",
-                    (user_id, image_path, image_data)
-                )
+                with open(temp_image_path, 'rb') as image_file:
+                    image_data = image_file.read()
+                    image_base64 = base64.b64encode(image_data).decode('utf-8')
+
+                temp_dir = "Temp"
+                os.makedirs(temp_dir, exist_ok=True)
+                image_path = os.path.join(temp_dir, f"{username}_registered.jpg".encode('utf-8').decode('utf-8'))
+
+                # Kullanıcının yüz verisi olup olmadığını kontrol et
+                cursor.execute("SELECT id FROM face_data WHERE user_id = %s", (user_id,))
+                existing_face_data = cursor.fetchone()
+
+                if existing_face_data:
+                    # Var olan yüz verisini güncelle
+                    cursor.execute("""
+                        UPDATE face_data
+                        SET image_path = %s, image = %s
+                        WHERE user_id = %s
+                    """, (image_path, image_base64, user_id))
+                else:
+                    # Yeni yüz verisi ekle
+                    cursor.execute("""
+                        INSERT INTO face_data (user_id, image_path, image)
+                        VALUES (%s, %s, %s)
+                    """, (user_id, image_path, image_base64))
+
                 self.connection.commit()
                 cursor.close()
 
-                # Görüntüyü dosya sistemine kaydet
-                cv2.imwrite(image_path, goruntu)
+                # Görüntüyü geçici dosya sistemine kaydet
+                os.rename(temp_image_path, image_path)
 
                 QMessageBox.information(self, "Bilgi", "Yüzünüz başarıyla kaydedildi")
                 self.stacked_widget.setCurrentWidget(self.tab_face)
+
+                # İşlemler tamamlandıktan sonra geçici dosyaları sil
+                os.remove(image_path)
             except Error as e:
                 QMessageBox.warning(self, "Veritabanı Hatası", f"Hata: {e}")
+            except Exception as e:
+                QMessageBox.warning(self, "Hata", f"Bilinmeyen bir hata oluştu: {e}")
+            finally:
+                if cursor:
+                    cursor.close()
+                if os.path.exists(temp_image_path):
+                    os.remove(temp_image_path)
         else:
             QMessageBox.warning(self, "Hata", "Görüntü alınamadı.")
 
@@ -305,12 +322,24 @@ class MainWindow(QMainWindow):
 
             # Kullanıcının ID'sini al
             cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
-            user_id = cursor.fetchone()[0]
+            user_id = cursor.fetchone()
+
+            if user_id is None:
+                QMessageBox.warning(self, "Hata", "Bu kullanıcı adı için kayıtlı yüz yok. Lütfen yüz kaydı yapın.")
+                return
+
+            user_id = user_id[0]
 
             # Yüz verisini veritabanından çek
             cursor.execute("SELECT image FROM face_data WHERE user_id = %s", (user_id,))
-            image_data = cursor.fetchone()[0]
+            image_data = cursor.fetchone()
             cursor.close()
+
+            if image_data is None:
+                QMessageBox.warning(self, "Hata", "Bu kullanıcı adı için kayıtlı yüz yok. Lütfen yüz kaydı yapın.")
+                return
+
+            image_data = image_data[0]
 
             # Base64 verisini çöz
             image_data = base64.b64decode(image_data)
@@ -327,8 +356,45 @@ class MainWindow(QMainWindow):
             self.stacked_widget.setCurrentWidget(self.tab_face)
         except Error as e:
             QMessageBox.warning(self, "Veritabanı Hatası", f"Hata: {e}")
+
     def face_verify(self):
-        QMessageBox.information(self, "Bilgi", "Yüz doğrulama işlemi başlatıldı")
+        username = self.login_username_entry.text()
+        if not username:
+            QMessageBox.warning(self, "Uyarı", "Lütfen bir kullanıcı adı girin")
+            return
+
+        try:
+            cursor = self.connection.cursor()
+
+            # Kullanıcının ID'sini al
+            cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+            user = cursor.fetchone()
+            if not user:
+                QMessageBox.warning(self, "Hata", "Bu kullanıcı adı için kayıtlı kullanıcı yok")
+                return
+
+            user_id = user[0]
+
+            # Yüz verisinin olup olmadığını kontrol et
+            cursor.execute("SELECT image FROM face_data WHERE user_id = %s", (user_id,))
+            face_data = cursor.fetchone()
+            cursor.close()
+
+            if not face_data:
+                QMessageBox.warning(self, "Hata", "Bu kullanıcı adı için kayıtlı yüz yok. Lütfen yüz kaydı yapın.")
+                return
+
+            registered_face_data = face_data[0]
+
+            # Yüz doğrulama işlemi
+            if yuz_dogrula(registered_face_data):
+                QMessageBox.information(self, "Başarı", "Yüz başarıyla doğrulandı")
+                self.stacked_widget.setCurrentWidget(self.tab_face)  # Ana sayfaya yönlendir
+            else:
+                QMessageBox.warning(self, "Hata", "Yüz doğrulama başarısız oldu")
+
+        except Exception as e:
+            QMessageBox.warning(self, "Veritabanı Hatası", f"Hata: {e}")
 
     def show_register_tab(self):
         self.stacked_widget.setCurrentWidget(self.register_widget)
