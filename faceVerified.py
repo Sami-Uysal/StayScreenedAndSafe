@@ -49,7 +49,7 @@ def yuz_dogrula(registered_face_data):
             if not os.path.exists(registered_temp_path):
                 raise FileNotFoundError(f"Kayıtlı geçici görüntü şu adreste bulunamadı {registered_temp_path}")
 
-            result = DeepFace.verify(img1_path=temp_path, img2_path=registered_temp_path)
+            result = DeepFace.verify(img1_path=registered_temp_path, img2_path=temp_path)
 
             # Geçici dosyaları sil
             os.remove(temp_path)
@@ -62,3 +62,5 @@ def yuz_dogrula(registered_face_data):
     except Exception as e:
         print(f"Hata: {str(e)}")
         return False
+
+

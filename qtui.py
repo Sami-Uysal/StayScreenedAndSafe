@@ -12,6 +12,7 @@ import mysqlconnect
 import cv2
 from faceVerified import yuz_kayit, yuz_dogrula
 import numpy as np
+import re
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -45,7 +46,7 @@ class MainWindow(QMainWindow):
         self.setup_register_tab()
         self.setup_2fa_tab()
         self.setup_face_tab()
-
+        self.setup_configure_tab()
         self.apply_styles()
 
     def setup_login_tab(self):
@@ -174,9 +175,53 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.show_face_label)
         layout.addWidget(self.logout_button)
 
+        # Uygulama yapılandır butonunu ekle
+        self.configure_button = QPushButton("Uygulama Yapılandır")
+        self.configure_button.clicked.connect(self.show_configure_tab)
+        layout.addWidget(self.configure_button)
+
         self.center_widgets(layout)
         self.tab_face.setLayout(layout)
         self.stacked_widget.addWidget(self.tab_face)
+
+    def setup_configure_tab(self):
+        self.tab_configure = QWidget()
+        layout = QVBoxLayout()
+
+        label = QLabel("Uygulama Yapılandırma Sayfası")
+        label.setAlignment(Qt.AlignCenter)
+
+        # Dakika değerini girebileceğimiz bir QLineEdit oluşturalım
+        self.interval_label = QLabel("Dakika da bir yüz doğrulaması yapsın:")
+        self.interval_entry = QLineEdit()
+        self.interval_entry.setPlaceholderText("Dakika sayısını giriniz")
+
+        # Ayarları Kaydet butonu
+        self.save_button = QPushButton("Ayarları Kaydet")
+        self.save_button.clicked.connect(self.save_configuration)
+
+        layout.addWidget(label)
+        layout.addWidget(self.interval_label)
+        layout.addWidget(self.interval_entry)
+        layout.addWidget(self.save_button)
+
+        self.center_widgets(layout)
+        self.tab_configure.setLayout(layout)
+        self.stacked_widget.addWidget(self.tab_configure)
+
+    def save_configuration(self):
+        interval_minutes = self.interval_entry.text()
+
+        try:
+            # Burada interval_minutes'i istediğiniz şekilde kullanabilirsiniz
+            # Örneğin, veritabanına kaydedebilirsiniz veya uygulama içinde kullanabilirsiniz
+            QMessageBox.information(self, "Bilgi",
+                                    f"Ayarlar kaydedildi: Yüz doğrulaması her {interval_minutes} dakikada bir yapılacak.")
+        except Exception as e:
+            QMessageBox.warning(self, "Hata", f"Ayarları kaydederken bir hata oluştu: {e}")
+
+    def sample_config_action(self):
+        QMessageBox.information(self, "Yapılandırma", "Örnek yapılandırma işlemi gerçekleştirildi!")
 
     def logout(self):
         self.logged_in_username = ""  # Kullanıcıyı oturumdan çıkar
@@ -187,16 +232,41 @@ class MainWindow(QMainWindow):
         email = self.register_email_entry.text()
         password = self.register_password_entry.text()
 
+        # Türkçe karakterleri kontrol eden regex
+        turkish_characters = re.compile(r'[çÇğĞıİöÖşŞüÜ]')
+
         if not username or not email or not password:
             QMessageBox.warning(self, "Hata", "Lütfen tüm alanları doldurun.")
             return
 
+        if turkish_characters.search(username):
+            QMessageBox.warning(self, "Hata", "Lütfen kullanıcı adında Türkçe karakter kullanmayın.")
+            return
+
         try:
             cursor = self.connection.cursor()
-            cursor.execute("INSERT INTO users (username, password, email) VALUES (%s, %s, %s)", (username, password, email))
+            cursor.execute("INSERT INTO users (username, password, email) VALUES (%s, %s, %s)",
+                           (username, password, email))
             self.connection.commit()
             QMessageBox.information(self, "Kayıt Başarılı", f"Kullanıcı {username} başarıyla kaydedildi!")
-            self.stacked_widget.setCurrentWidget(self.login_widget)
+
+            # Kullanıcı kaydedildikten sonra 2FA işlemleri için gerekli kontrolleri yapın
+            cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+            user = cursor.fetchone()
+
+            if user:
+                cursor.execute("SELECT * FROM two_factor_data WHERE user_id = %s", (user[0],))
+                two_fa_data = cursor.fetchone()
+
+                if not two_fa_data:
+                    key = pyotp.random_base32()
+                    save_secret_key(username, key)
+                    generate_qr_code(username)
+                    display_qr(username, self.qr_label_2fa)
+                    self.stacked_widget.setCurrentWidget(self.tab_2fa)
+                else:
+                    QMessageBox.warning(self, "Bilinmeyen bir hata", "2FA secret key value not found!")
+
             cursor.close()
 
         except Error as e:
@@ -207,48 +277,35 @@ class MainWindow(QMainWindow):
         password = self.login_password_entry.text()
 
         if not username or not password:
-            QMessageBox.warning(self, "Hata", "Kullanıcı adı ve parola boş bırakılamaz.")
+            QMessageBox.warning(self, "Hata", "Lütfen kullanıcı adı ve parola girin.")
             return
-
-        self.logged_in_username = username
 
         try:
             cursor = self.connection.cursor()
-            cursor.execute("SELECT * FROM users WHERE username = %s AND password = %s", (username, password))
+            cursor.execute("SELECT * FROM users WHERE username=%s AND password=%s", (username, password))
             user = cursor.fetchone()
-
             if user:
-                QMessageBox.information(self, "Giriş Başarılı", "Başarıyla giriş yaptınız!")
-                cursor.execute("SELECT * FROM two_factor_data WHERE user_id = %s", (user[0],))
-                two_fa_data = cursor.fetchone()
-
-                if not two_fa_data:
-                    key = pyotp.random_base32()
-                    save_secret_key(username, key)
-                    generate_qr_code(username)
-                display_qr(username, self.qr_label_2fa)
-                self.stacked_widget.setCurrentWidget(self.tab_2fa)
+                self.logged_in_username = username  # Kullanıcı adı kaydedildi
+                QMessageBox.information(self, "Giriş Başarılı", f"Hoş geldiniz, {username}!")
+                self.stacked_widget.setCurrentWidget(self.tab_face)  # Yüz doğrulama sekmesine geç
             else:
-                QMessageBox.warning(self, "Giriş Başarısız", "Kullanıcı adı veya parola yanlış!")
-
+                QMessageBox.warning(self, "Hata", "Geçersiz kullanıcı adı veya parola.")
             cursor.close()
-
         except Error as e:
             QMessageBox.warning(self, "Veritabanı Hatası", f"Hata: {e}")
 
     def generate_qr(self):
-        username = self.logged_in_username
+        username = self.register_username_entry.text()  # Kullanıcı adını register ekranından çek
         display_qr(username, self.qr_label_2fa)
 
     def verify_code(self):
-        username = self.logged_in_username
+        username = self.register_username_entry.text()
         code = self.code_entry.text()
-        success, message = verify_code(username, code)
-        if success:
-            QMessageBox.information(self, "Başarılı", message)
-            self.stacked_widget.setCurrentWidget(self.tab_face)
+        if verify_code(username, code):
+            QMessageBox.information(self, "Doğrulama Başarılı", "2FA kodu doğrulandı!")
+            self.stacked_widget.setCurrentWidget(self.tab_face)  # Yüz kaydı sekmesine geç
         else:
-            QMessageBox.warning(self, "Hata", message)
+            QMessageBox.warning(self, "Doğrulama Hatası", "Geçersiz 2FA kodu.")
 
     def face_register(self):
         username = self.logged_in_username
@@ -389,12 +446,21 @@ class MainWindow(QMainWindow):
             # Yüz doğrulama işlemi
             if yuz_dogrula(registered_face_data):
                 QMessageBox.information(self, "Başarı", "Yüz başarıyla doğrulandı")
+                self.show_configure_button()
                 self.stacked_widget.setCurrentWidget(self.tab_face)  # Ana sayfaya yönlendir
             else:
                 QMessageBox.warning(self, "Hata", "Yüz doğrulama başarısız oldu")
 
         except Exception as e:
             QMessageBox.warning(self, "Veritabanı Hatası", f"Hata: {e}")
+
+    def show_configure_button(self):
+        self.configure_button = QPushButton("Uygulamayı Yapılandır")
+        self.configure_button.clicked.connect(self.show_configure_tab)
+        self.tab_face.layout().addWidget(self.configure_button)
+
+    def show_configure_tab(self):
+        self.stacked_widget.setCurrentWidget(self.tab_configure)
 
     def show_register_tab(self):
         self.stacked_widget.setCurrentWidget(self.register_widget)
