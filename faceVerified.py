@@ -2,9 +2,9 @@ import cv2
 import base64
 from deepface import DeepFace
 import os
-import locale
+import time
+from threading import Thread
 
-locale.setlocale(locale.LC_ALL, "tr_TR")
 def yuz_kayit(username):
     kamera = cv2.VideoCapture(0)
     ret, goruntu = kamera.read()
@@ -55,6 +55,10 @@ def yuz_dogrula(registered_face_data):
             os.remove(temp_path)
             os.remove(registered_temp_path)
 
+            if result["verified"]:
+                print("Yüz doğrulama başarılı.")
+            else:
+                print("Yüz doğrulama başarısız.")
             return result["verified"]
         else:
             print("Hata: Görüntü alınamadı.")
@@ -62,5 +66,19 @@ def yuz_dogrula(registered_face_data):
     except Exception as e:
         print(f"Hata: {str(e)}")
         return False
+
+def start_face_recognition(interval, registered_face_data):
+    def recognize_faces_periodically():
+        while True:
+            yuz_dogrula(registered_face_data)
+
+            time.sleep(interval * 60)
+
+    recognition_thread = Thread(target=recognize_faces_periodically)
+    recognition_thread.daemon = True
+    recognition_thread.start()
+
+def configure_and_start_recognition(user_interval, registered_face_data):
+    start_face_recognition(user_interval, registered_face_data)
 
 
