@@ -71,18 +71,5 @@ def yuz_dogrula(registered_face_data, error=0):
             print(f"Hata: {str(e)}")
             return yuz_dogrula(registered_face_data, error + 1)
 
-def start_face_recognition(interval, registered_face_data):
-    def recognize_faces_periodically():
-        while True:
-            yuz_dogrula(registered_face_data,error=0)
-
-            time.sleep(interval * 60)
-
-    recognition_thread = Thread(target=recognize_faces_periodically)
-    recognition_thread.daemon = True
-    recognition_thread.start()
-
-def configure_and_start_recognition(user_interval, registered_face_data):
-    start_face_recognition(user_interval, registered_face_data)
 
 
