@@ -2,17 +2,19 @@ import base64
 import sys
 import pyotp
 import os
-from mysql.connector import Error
 import sys
+import time
+from threading import Thread
+from mysql.connector import Error
 from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QWidget, QVBoxLayout, QHBoxLayout, QLabel, \
     QLineEdit, QPushButton, QStackedWidget, QDialog, QSpinBox, QSystemTrayIcon, QAction, QMenu
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QIcon
 from two_factor_auth import generate_qr_code, display_qr, verify_code, save_secret_key
 import mysqlconnect
 import cv2
-from faceVerified import yuz_kayit, yuz_dogrula, configure_and_start_recognition
+from faceVerified import yuz_kayit, yuz_dogrula
 import numpy as np
 import re
 
@@ -37,12 +39,14 @@ class ConfigDialog(QDialog):
         self.parent().config_dialog.interval = interval
         username = self.parent().logged_in_username
         registered_face_data = self.parent().get_registered_face_data(username)
-        configure_and_start_recognition(interval, registered_face_data)  # Burada registered_face_data eklenmeli
+        configure_and_start_recognition(interval, registered_face_data, self)  # Burada registered_face_data eklenmeli
         QMessageBox.information(self, "Bilgi", f"Ayarlar kaydedildi: Yüz doğrulaması her {interval} dakikada bir yapılacak.")
         self.accept()
 
 
 class MainWindow(QMainWindow):
+    face_recognition_success = pyqtSignal()
+    face_recognition_failure = pyqtSignal()
     def __init__(self):
         super(MainWindow, self).__init__()
 
@@ -52,6 +56,17 @@ class MainWindow(QMainWindow):
         self.setup_layout()
         self.setup_tabs()
         self.apply_styles()
+
+        self.face_recognition_success.connect(self.on_face_recognition_success)
+        self.face_recognition_failure.connect(self.on_face_recognition_failure)
+
+    def on_face_recognition_success(self):
+        QMessageBox.information(self, "Başarı", "Yüz başarıyla doğrulandı")
+
+    def on_face_recognition_failure(self):
+        QMessageBox.warning(self, "Hata", "Yüz doğrulama başarısız oldu.Lütfen 2FA kodunu girin.")
+        self.show()
+        self.stacked_widget.setCurrentWidget(self.tab_2fa)
 
     def setup_system_tray(self):
         self.tray_icon = QSystemTrayIcon(self)
@@ -304,7 +319,7 @@ class MainWindow(QMainWindow):
 
     def save_config(self):
         interval = self.interval_input.value()
-        configure_and_start_recognition(interval, self.get_registered_face_data(self.logged_in_username))
+        configure_and_start_recognition(interval, self.get_registered_face_data(self.logged_in_username), self)
         QMessageBox.information(self, "Bilgi", f"Ayarlar kaydedildi: Yüz doğrulaması her {interval} dakikada bir yapılacak.")
 
 
@@ -525,11 +540,11 @@ class MainWindow(QMainWindow):
             registered_face_data = face_data[0]
 
             # Yüz doğrulama işlemi
-            if yuz_dogrula(registered_face_data):
-                QMessageBox.information(self, "Başarı", "Yüz başarıyla doğrulandı")
-                self.stacked_widget.setCurrentWidget(self.tab_face)  # Ana sayfaya yönlendir
+            if yuz_dogrula(registered_face_data, error=0):
+                self.face_recognition_success.emit()
+                self.stacked_widget.setCurrentWidget(self.tab_face)
             else:
-                QMessageBox.warning(self, "Hata", "Yüz doğrulama başarısız oldu")
+                self.face_recognition_failure.emit()
 
         except Exception as e:
             QMessageBox.warning(self, "Veritabanı Hatası", f"Hata: {e}")
@@ -607,6 +622,25 @@ class MainWindow(QMainWindow):
             QIcon('sssLogo.png'),
             2000
         )
+
+
+def start_face_recognition(interval, registered_face_data, window_instance):
+    def recognize_faces_periodically():
+        while True:
+            if yuz_dogrula(registered_face_data, error=0):
+                window_instance.face_recognition_success.emit()
+            else:
+                window_instance.face_recognition_failure.emit()
+
+            time.sleep(interval * 60)
+
+    recognition_thread = Thread(target=recognize_faces_periodically)
+    recognition_thread.daemon = True
+    recognition_thread.start()
+
+
+def configure_and_start_recognition(user_interval, registered_face_data, window_instance):
+    start_face_recognition(user_interval, registered_face_data, window_instance)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
