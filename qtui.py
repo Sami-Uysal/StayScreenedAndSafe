@@ -2,11 +2,15 @@ import base64
 import sys
 import pyotp
 import os
+import sys
+import time
+from threading import Thread
 from mysql.connector import Error
 from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QWidget, QVBoxLayout, QHBoxLayout, QLabel, \
-    QLineEdit, QPushButton, QStackedWidget
-from PyQt5.QtCore import Qt
+    QLineEdit, QPushButton, QStackedWidget, QDialog, QSpinBox, QSystemTrayIcon, QAction, QMenu
+from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtGui import QIcon
 from two_factor_auth import generate_qr_code, display_qr, verify_code, save_secret_key
 import mysqlconnect
 import cv2
@@ -14,18 +18,87 @@ from faceVerified import yuz_kayit, yuz_dogrula
 import numpy as np
 import re
 
+class ConfigDialog(QDialog):
+    def __init__(self, parent=None):
+        super(ConfigDialog, self).__init__(parent)
+        self.setWindowTitle('Aralığı Yapılandırma')
+        self.interval_input = QSpinBox(self)
+        self.interval_input.setSuffix(' dakika')
+        self.interval_input.setRange(1, 120)
+        self.interval_input.setValue(5)
+        self.save_button = QPushButton('Kaydet', self)
+        self.save_button.clicked.connect(self.save_config)
+        layout = QVBoxLayout()
+        layout.addWidget(self.interval_input)
+        layout.addWidget(self.save_button)
+        self.setLayout(layout)
+        self.interval = 5
+
+    def save_config(self):
+        interval = self.interval_input.value()
+        self.parent().config_dialog.interval = interval
+        username = self.parent().logged_in_username
+        registered_face_data = self.parent().get_registered_face_data(username)
+        configure_and_start_recognition(interval, registered_face_data, self)  # Burada registered_face_data eklenmeli
+        QMessageBox.information(self, "Bilgi", f"Ayarlar kaydedildi: Yüz doğrulaması her {interval} dakikada bir yapılacak.")
+        self.accept()
+
+
 class MainWindow(QMainWindow):
+    face_recognition_success = pyqtSignal()
+    face_recognition_failure = pyqtSignal()
     def __init__(self):
-        super().__init__()
+        super(MainWindow, self).__init__()
+
+        self.setup_system_tray()
+        self.setup_main_window()
+        self.setup_mysql_connection()
+        self.setup_layout()
+        self.setup_tabs()
+        self.apply_styles()
+
+        self.face_recognition_success.connect(self.on_face_recognition_success)
+        self.face_recognition_failure.connect(self.on_face_recognition_failure)
+
+    def on_face_recognition_success(self):
+        QMessageBox.information(self, "Başarı", "Yüz başarıyla doğrulandı")
+
+    def on_face_recognition_failure(self):
+        QMessageBox.warning(self, "Hata", "Yüz doğrulama başarısız oldu.Lütfen 2FA kodunu girin.")
+        self.show()
+        self.stacked_widget.setCurrentWidget(self.tab_2fa)
+
+    def setup_system_tray(self):
+        self.tray_icon = QSystemTrayIcon(self)
+        self.tray_icon.setIcon(QIcon('sssLogo.png'))
+
+        show_action = QAction('Göster', self)
+        quit_action = QAction('Çık', self)
+        hide_action = QAction('Gizle', self)
+
+        show_action.triggered.connect(self.show)
+        quit_action.triggered.connect(QApplication.instance().quit)
+        hide_action.triggered.connect(self.hide)
+
+        tray_menu = QMenu()
+        tray_menu.addAction(show_action)
+        tray_menu.addAction(hide_action)
+        tray_menu.addAction(quit_action)
+
+        self.tray_icon.setContextMenu(tray_menu)
+        self.tray_icon.show()
+
+    def setup_main_window(self):
         self.setWindowTitle("StayScreenedAndSafe")
         self.setGeometry(100, 100, 800, 600)
 
-        # MySQL bağlantısını oluştur
+    def setup_mysql_connection(self):
         self.connection = mysqlconnect.create_connection()
         if self.connection is None:
             QMessageBox.critical(self, "Bağlantı Hatası", "MySQL veritabanına bağlanılamadı.")
             sys.exit(1)
 
+    def setup_layout(self):
         main_layout = QVBoxLayout()
 
         # Logo ekle
@@ -42,13 +115,13 @@ class MainWindow(QMainWindow):
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
 
+
+    def setup_tabs(self):
         self.setup_login_tab()
         self.setup_register_tab()
         self.setup_2fa_tab()
         self.setup_face_tab()
         self.setup_configure_tab()
-        self.apply_styles()
-
     def setup_login_tab(self):
         self.login_widget = QWidget()
         layout = QVBoxLayout()
@@ -122,6 +195,24 @@ class MainWindow(QMainWindow):
         self.register_widget.setLayout(layout)
         self.stacked_widget.addWidget(self.register_widget)
 
+    def get_registered_face_data(self, username):
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+            user = cursor.fetchone()
+            if not user:
+                return None
+            user_id = user[0]
+            cursor.execute("SELECT image FROM face_data WHERE user_id = %s", (user_id,))
+            face_data = cursor.fetchone()
+            cursor.close()
+            if not face_data:
+                return None
+            return face_data[0]
+        except Error as e:
+            QMessageBox.warning(self, "Veritabanı Hatası", f"Hata: {e}")
+            return None
+
     def setup_2fa_tab(self):
         self.tab_2fa = QWidget()
         layout = QVBoxLayout()
@@ -175,7 +266,6 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.show_face_label)
         layout.addWidget(self.logout_button)
 
-        # Uygulama yapılandır butonunu ekle
         self.configure_button = QPushButton("Uygulama Yapılandır")
         self.configure_button.clicked.connect(self.show_configure_tab)
         layout.addWidget(self.configure_button)
@@ -186,46 +276,52 @@ class MainWindow(QMainWindow):
 
     def setup_configure_tab(self):
         self.tab_configure = QWidget()
-        layout = QVBoxLayout()
 
+        # Label for the configuration page
         label = QLabel("Uygulama Yapılandırma Sayfası")
         label.setAlignment(Qt.AlignCenter)
+        label.setStyleSheet("font-size: 18px; color: #1abc9c;")
 
-        # Dakika değerini girebileceğimiz bir QLineEdit oluşturalım
-        self.interval_label = QLabel("Dakika da bir yüz doğrulaması yapsın:")
-        self.interval_entry = QLineEdit()
-        self.interval_entry.setPlaceholderText("Dakika sayısını giriniz")
+        # Interval configuration
+        self.interval_label = QLabel("Kaç dakika da bir yüz doğrulaması yapılmalı:")
+        self.interval_label.setStyleSheet("font-size: 14px; color: #2c3e50;")
 
-        # Ayarları Kaydet butonu
-        self.save_button = QPushButton("Ayarları Kaydet")
-        self.save_button.clicked.connect(self.save_configuration)
+        self.interval_input = QSpinBox()
+        self.interval_input.setSuffix(' dakika')
+        self.interval_input.setRange(1, 120)
+        self.interval_input.setValue(5)
 
+        # Save configuration button
+        self.save_config_button = QPushButton("Ayarları Kaydet")
+        self.save_config_button.clicked.connect(self.save_config)
+        self.save_config_button.setStyleSheet("background-color: #1abc9c; color: #ecf0f1;")
+
+        # Return to main page button
+        self.return_to_main_button = QPushButton("Ana Sayfaya Dön")
+        self.return_to_main_button.clicked.connect(self.show_face_tab)
+        self.return_to_main_button.setStyleSheet("background-color: #e74c3c; color: #ecf0f1;")
+
+        # Layout for the tab_configure
+        layout = QVBoxLayout()
         layout.addWidget(label)
         layout.addWidget(self.interval_label)
-        layout.addWidget(self.interval_entry)
-        layout.addWidget(self.save_button)
+        layout.addWidget(self.interval_input)
+        layout.addWidget(self.save_config_button)
+        layout.addWidget(self.return_to_main_button)
+        layout.setAlignment(Qt.AlignCenter)
+        layout.setSpacing(20)
 
-        self.center_widgets(layout)
         self.tab_configure.setLayout(layout)
         self.stacked_widget.addWidget(self.tab_configure)
 
-    def save_configuration(self):
-        interval_minutes = self.interval_entry.text()
+    def show_face_tab(self):
+        self.stacked_widget.setCurrentWidget(self.tab_face)
 
-        try:
-            # Burada interval_minutes'i istediğiniz şekilde kullanabilirsiniz
-            # Örneğin, veritabanına kaydedebilirsiniz veya uygulama içinde kullanabilirsiniz
-            QMessageBox.information(self, "Bilgi",
-                                    f"Ayarlar kaydedildi: Yüz doğrulaması her {interval_minutes} dakikada bir yapılacak.")
-        except Exception as e:
-            QMessageBox.warning(self, "Hata", f"Ayarları kaydederken bir hata oluştu: {e}")
+    def save_config(self):
+        interval = self.interval_input.value()
+        configure_and_start_recognition(interval, self.get_registered_face_data(self.logged_in_username), self)
+        QMessageBox.information(self, "Bilgi", f"Ayarlar kaydedildi: Yüz doğrulaması her {interval} dakikada bir yapılacak.")
 
-    def sample_config_action(self):
-        QMessageBox.information(self, "Yapılandırma", "Örnek yapılandırma işlemi gerçekleştirildi!")
-
-    def logout(self):
-        self.logged_in_username = ""  # Kullanıcıyı oturumdan çıkar
-        self.show_login_tab()  # Giriş ekranına dön
 
     def register(self):
         username = self.register_username_entry.text()
@@ -444,12 +540,11 @@ class MainWindow(QMainWindow):
             registered_face_data = face_data[0]
 
             # Yüz doğrulama işlemi
-            if yuz_dogrula(registered_face_data):
-                QMessageBox.information(self, "Başarı", "Yüz başarıyla doğrulandı")
-                self.show_configure_button()
-                self.stacked_widget.setCurrentWidget(self.tab_face)  # Ana sayfaya yönlendir
+            if yuz_dogrula(registered_face_data, error=0):
+                self.face_recognition_success.emit()
+                self.stacked_widget.setCurrentWidget(self.tab_face)
             else:
-                QMessageBox.warning(self, "Hata", "Yüz doğrulama başarısız oldu")
+                self.face_recognition_failure.emit()
 
         except Exception as e:
             QMessageBox.warning(self, "Veritabanı Hatası", f"Hata: {e}")
@@ -475,35 +570,79 @@ class MainWindow(QMainWindow):
 
     def apply_styles(self):
         self.setStyleSheet("""
-                        QMainWindow {
-                            background-color: #f0f0f0;
-                        }
-                        QLabel {
-                            font-size: 16px;
-                            color: #333333;
-                        }
-                        QLineEdit {
-                            font-size: 14px;
-                            padding: 8px;
-                            border: 1px solid #cccccc;
-                            border-radius: 5px;
-                        }
-                        QPushButton {
-                            font-size: 14px;
-                            padding: 10px;
-                            border: 1px solid #0078d7;
-                            border-radius: 5px;
-                            background-color: #0078d7;
-                            color: #ffffff;
-                        }
-                        QPushButton:hover {
-                            background-color: #005a9e;
-                        }
-                        QHBoxLayout, QVBoxLayout {
-                            margin: 20px;
-                        }
-                    """)
-if __name__ == "__main__":
+            QMainWindow {
+                background-color: #2c3e50;
+                color: #ecf0f1;
+            }
+            QLabel {
+                font-size: 14px;
+                color: #ecf0f1;
+            }
+            QLineEdit {
+                background-color: #34495e;
+                color: #ecf0f1;
+                padding: 5px;
+                border: 1px solid #1abc9c;
+            }
+            QPushButton {
+                background-color: #1abc9c;
+                color: #ecf0f1;
+                padding: 10px;
+                border: none;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #16a085;
+            }
+            QMessageBox {
+                background-color: #34495e;
+                color: #ecf0f1;
+                border: 2px solid #1abc9c;
+            }
+            QMessageBox QPushButton {
+                background-color: #1abc9c;
+                color: #ecf0f1;
+                padding: 5px;
+                border: none;
+                border-radius: 3px;
+            }
+            QMessageBox QPushButton:hover {
+                background-color: #16a085;
+            }           
+        """)
+
+    def logout(self):
+        self.stacked_widget.setCurrentWidget(self.login_widget)
+    def closeEvent(self, event):
+        event.ignore()
+        self.hide()
+        self.tray_icon.showMessage(
+            "StayScreenedAndSafe",
+            "Uygulama sistem tepsisine taşındı.",
+            QIcon('sssLogo.png'),
+            2000
+        )
+
+
+def start_face_recognition(interval, registered_face_data, window_instance):
+    def recognize_faces_periodically():
+        while True:
+            if yuz_dogrula(registered_face_data, error=0):
+                window_instance.face_recognition_success.emit()
+            else:
+                window_instance.face_recognition_failure.emit()
+
+            time.sleep(interval * 60)
+
+    recognition_thread = Thread(target=recognize_faces_periodically)
+    recognition_thread.daemon = True
+    recognition_thread.start()
+
+
+def configure_and_start_recognition(user_interval, registered_face_data, window_instance):
+    start_face_recognition(user_interval, registered_face_data, window_instance)
+
+if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
