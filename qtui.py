@@ -525,12 +525,12 @@ class MainWindow(QMainWindow):
             registered_face_data = face_data[0]
 
             # Yüz doğrulama işlemi
-            if yuz_dogrula(registered_face_data):
+            if yuz_dogrula(registered_face_data, error=0):
                 QMessageBox.information(self, "Başarı", "Yüz başarıyla doğrulandı")
                 self.stacked_widget.setCurrentWidget(self.tab_face)  # Ana sayfaya yönlendir
             else:
                 QMessageBox.warning(self, "Hata", "Yüz doğrulama başarısız oldu")
-
+                self.stacked_widget.setCurrentWidget(self.tab_2fa)
         except Exception as e:
             QMessageBox.warning(self, "Veritabanı Hatası", f"Hata: {e}")
 
