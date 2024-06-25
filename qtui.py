@@ -111,7 +111,7 @@ class MainWindow(QMainWindow):
 
         # Logo ekle
         self.logo_label = QLabel()
-        self.logo_label.setPixmap(QPixmap("sssLogo.png").scaled(400, 200, Qt.KeepAspectRatio))
+        self.logo_label.setPixmap(QPixmap("sssLogo - Kopya (2).png").scaled(1920, 300, Qt.KeepAspectRatio))
         self.logo_label.setAlignment(Qt.AlignCenter)
 
         self.stacked_widget = QStackedWidget()
@@ -701,6 +701,8 @@ def configure_and_start_recognition(user_interval, registered_face_data, window_
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+    icon_path = "sssLogo - Kopya.png"
     window = MainWindow()
+    window.setWindowIcon(QIcon(icon_path))
     window.show()
     sys.exit(app.exec_())
