@@ -2,8 +2,7 @@ import cv2
 import base64
 from deepface import DeepFace
 import os
-import time
-from threading import Thread
+
 
 def yuz_kayit(username):
     kamera = cv2.VideoCapture(0)

@@ -17,6 +17,7 @@ import cv2
 from faceVerified import yuz_kayit, yuz_dogrula
 import numpy as np
 import re
+import ctypes
 
 class ConfigDialog(QDialog):
     def __init__(self, parent=None):
@@ -44,6 +45,7 @@ class ConfigDialog(QDialog):
         self.accept()
 
 
+
 class MainWindow(QMainWindow):
     face_recognition_success = pyqtSignal()
     face_recognition_failure = pyqtSignal()
@@ -59,6 +61,9 @@ class MainWindow(QMainWindow):
 
         self.face_recognition_success.connect(self.on_face_recognition_success)
         self.face_recognition_failure.connect(self.on_face_recognition_failure)
+
+
+
 
     def on_face_recognition_success(self):
         QMessageBox.information(self, "Başarı", "Yüz başarıyla doğrulandı")
@@ -213,6 +218,7 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Veritabanı Hatası", f"Hata: {e}")
             return None
 
+
     def setup_2fa_tab(self):
         self.tab_2fa = QWidget()
         layout = QVBoxLayout()
@@ -327,7 +333,7 @@ class MainWindow(QMainWindow):
         username = self.register_username_entry.text()
         email = self.register_email_entry.text()
         password = self.register_password_entry.text()
-
+        print(username + " register username testi")
         # Türkçe karakterleri kontrol eden regex
         turkish_characters = re.compile(r'[çÇğĞıİöÖşŞüÜ]')
 
@@ -371,7 +377,7 @@ class MainWindow(QMainWindow):
     def login(self):
         username = self.login_username_entry.text()
         password = self.login_password_entry.text()
-
+        print(username + " login username testi")
         if not username or not password:
             QMessageBox.warning(self, "Hata", "Lütfen kullanıcı adı ve parola girin.")
             return
@@ -393,10 +399,26 @@ class MainWindow(QMainWindow):
     def generate_qr(self):
         username = self.register_username_entry.text()  # Kullanıcı adını register ekranından çek
         display_qr(username, self.qr_label_2fa)
+        print(username + " generate_qr username testi")
 
     def verify_code(self):
-        username = self.register_username_entry.text()
+        username = self.register_username_entry.text() if self.register_username_entry.text() else self.login_username_entry.text()
+
+        print(username+" verify_code username testi")
         code = self.code_entry.text()
+        if verify_code(username, code):
+            QMessageBox.information(self, "Doğrulama Başarılı", "2FA kodu doğrulandı!")
+            self.stacked_widget.setCurrentWidget(self.tab_face)  # Yüz kaydı sekmesine geç
+        else:
+            QMessageBox.warning(self, "Doğrulama Hatası", "Geçersiz 2FA kodu.")
+            self.lock_windows_session()
+
+    def lock_windows_session(self):
+        ctypes.windll.user32.LockWorkStation()
+    def verify_code_login(self):
+        username = self.login_username_entry.text()
+        code = self.code_entry.text()
+        print(username + " verify_code_login username testi")
         if verify_code(username, code):
             QMessageBox.information(self, "Doğrulama Başarılı", "2FA kodu doğrulandı!")
             self.stacked_widget.setCurrentWidget(self.tab_face)  # Yüz kaydı sekmesine geç
