@@ -12,8 +12,6 @@ def yuz_kayit(username):
     if ret:
         temp_dir = "Temp"
         os.makedirs(temp_dir, exist_ok=True)
-
-        # Dosya adında Türkçe karakterler doğru işlenmesi için UTF-8 kullanılıyor
         temp_path = os.path.join(temp_dir, f"{username}_temp.jpg")
         cv2.imwrite(temp_path, goruntu)
 
@@ -40,7 +38,6 @@ def yuz_dogrula(registered_face_data, error=0):
 
                 registered_temp_path = os.path.join(temp_dir, "registered_temp.jpg")
 
-                # Base64 verisini çöz ve geçici dosya olarak kaydet
                 image_data = base64.b64decode(registered_face_data)
                 with open(registered_temp_path, "wb") as f:
                     f.write(image_data)
@@ -53,7 +50,6 @@ def yuz_dogrula(registered_face_data, error=0):
 
                 result = DeepFace.verify(img1_path=registered_temp_path, img2_path=temp_path)
 
-                # Geçici dosyaları sil
                 os.remove(temp_path)
                 os.remove(registered_temp_path)
 

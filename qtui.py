@@ -41,7 +41,7 @@ class ConfigDialog(QDialog):
         self.parent().config_dialog.interval = interval
         username = self.parent().logged_in_username
         registered_face_data = self.parent().get_registered_face_data(username)
-        configure_and_start_recognition(interval, registered_face_data, self)  # Burada registered_face_data eklenmeli
+        configure_and_start_recognition(interval, registered_face_data, self)
         QMessageBox.information(self, "Bilgi", f"Ayarlar kaydedildi: Yüz doğrulaması her {interval} dakikada bir yapılacak.")
         self.accept()
 
@@ -81,17 +81,14 @@ class MainWindow(QMainWindow):
         self.tray_icon.setIcon(QIcon('sssLogo.png'))
 
         show_action = QAction('Göster', self)
-        #quit_action = QAction('Çık', self)
         hide_action = QAction('Gizle', self)
 
         show_action.triggered.connect(self.show)
-       # quit_action.triggered.connect(self.prevent_close)
         hide_action.triggered.connect(self.hide)
 
         tray_menu = QMenu()
         tray_menu.addAction(show_action)
         tray_menu.addAction(hide_action)
-       # tray_menu.addAction(quit_action)
 
         self.tray_icon.setContextMenu(tray_menu)
         self.tray_icon.show()
@@ -109,7 +106,6 @@ class MainWindow(QMainWindow):
     def setup_layout(self):
         main_layout = QVBoxLayout()
 
-        # Logo ekle
         self.logo_label = QLabel()
         self.logo_label.setPixmap(QPixmap("sssLogo - Kopya (2).png").scaled(1920, 300, Qt.KeepAspectRatio))
         self.logo_label.setAlignment(Qt.AlignCenter)
@@ -123,10 +119,6 @@ class MainWindow(QMainWindow):
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
 
-    def prevent_close(self):
-        # Kullanıcı çıkış yapmak istediğinde uyarı ver ve çıkışı engelle
-        QMessageBox.warning(self, "Uyarı",
-                            "Çıkış yapmak için sağ tık menüsünden 'Çıkış'ı seçemezsiniz. Uygulamayı kapatmak için 'Gizle' seçeneğini kullanabilirsiniz.")
     def setup_tabs(self):
         self.setup_login_tab()
         self.setup_register_tab()
@@ -228,14 +220,13 @@ class MainWindow(QMainWindow):
         self.tab_2fa = QWidget()
         layout = QVBoxLayout()
 
-        # Timer labelı ve bilgilendirme metni
         self.timer_label = QLabel(
             "2FA kodunu giriniz, aksi takdirde oturum 30 saniye içinde kilitlenecek. Kalan süre: 30 saniye")
-        self.timer_label.setAlignment(Qt.AlignCenter)  # Ortala
+        self.timer_label.setAlignment(Qt.AlignCenter)  
         layout.addWidget(self.timer_label)
 
         self.qr_label_2fa = QLabel()
-        self.qr_label_2fa.setAlignment(Qt.AlignCenter)  # Ortala
+        self.qr_label_2fa.setAlignment(Qt.AlignCenter) 
 
         code_layout = QHBoxLayout()
         self.code_label = QLabel("2FA Kodu:")
@@ -259,14 +250,12 @@ class MainWindow(QMainWindow):
         self.tab_2fa.setLayout(layout)
         self.stacked_widget.addWidget(self.tab_2fa)
 
-        # Timer ayarlaması
         self.countdown_timer = QTimer(self)
         self.countdown_timer.timeout.connect(self.update_timer)
-        self.time_remaining = 30  # Oturum kilitlenme süresi saniye cinsinden
+        self.time_remaining = 30
 
     def start_timer(self):
-        # Timer'ı başlat
-        self.countdown_timer.start(1000)  # 1 saniye aralıklarla çalışacak
+        self.countdown_timer.start(1000)
 
     def update_timer(self):
         if self.time_remaining > 0:
@@ -275,10 +264,9 @@ class MainWindow(QMainWindow):
         else:
             self.timer_label.setText("Oturum kilitlendi!")
             self.countdown_timer.stop()
-            self.lock_windows_session()  # Oturumu kitleme işlemi
+            self.lock_windows_session()
 
     def on_2fa_tab_selected(self):
-        # 2FA sekmesi seçildiğinde timer'ı başlat
         self.start_timer()
 
     def setup_face_tab(self):
@@ -317,12 +305,10 @@ class MainWindow(QMainWindow):
     def setup_configure_tab(self):
         self.tab_configure = QWidget()
 
-        # Label for the configuration page
         label = QLabel("Uygulama Yapılandırma Sayfası")
         label.setAlignment(Qt.AlignCenter)
         label.setStyleSheet("font-size: 18px; color: #1abc9c;")
 
-        # Interval configuration
         self.interval_label = QLabel("Kaç dakika da bir yüz doğrulaması yapılmalı:")
         self.interval_label.setStyleSheet("font-size: 14px; color: #2c3e50;")
 
@@ -331,17 +317,14 @@ class MainWindow(QMainWindow):
         self.interval_input.setRange(1, 120)
         self.interval_input.setValue(5)
 
-        # Save configuration button
         self.save_config_button = QPushButton("Ayarları Kaydet")
         self.save_config_button.clicked.connect(self.save_config)
         self.save_config_button.setStyleSheet("background-color: #1abc9c; color: #ecf0f1;")
 
-        # Return to main page button
         self.return_to_main_button = QPushButton("Ana Sayfaya Dön")
         self.return_to_main_button.clicked.connect(self.show_face_tab)
         self.return_to_main_button.setStyleSheet("background-color: #e74c3c; color: #ecf0f1;")
 
-        # Layout for the tab_configure
         layout = QVBoxLayout()
         layout.addWidget(label)
         layout.addWidget(self.interval_label)
@@ -368,7 +351,7 @@ class MainWindow(QMainWindow):
         email = self.register_email_entry.text()
         password = self.register_password_entry.text()
         print(username + " register username testi")
-        # Türkçe karakterleri kontrol eden regex
+
         turkish_characters = re.compile(r'[çÇğĞıİöÖşŞüÜ]')
 
         if not username or not email or not password:
@@ -386,7 +369,6 @@ class MainWindow(QMainWindow):
             self.connection.commit()
             QMessageBox.information(self, "Kayıt Başarılı", f"Kullanıcı {username} başarıyla kaydedildi!")
 
-            # Kullanıcı kaydedildikten sonra 2FA işlemleri için gerekli kontrolleri yapın
             cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
             user = cursor.fetchone()
 
@@ -421,9 +403,9 @@ class MainWindow(QMainWindow):
             cursor.execute("SELECT * FROM users WHERE username=%s AND password=%s", (username, password))
             user = cursor.fetchone()
             if user:
-                self.logged_in_username = username  # Kullanıcı adı kaydedildi
+                self.logged_in_username = username 
                 QMessageBox.information(self, "Giriş Başarılı", f"Hoş geldiniz, {username}!")
-                self.stacked_widget.setCurrentWidget(self.tab_face)  # Yüz doğrulama sekmesine geç
+                self.stacked_widget.setCurrentWidget(self.tab_face) 
             else:
                 QMessageBox.warning(self, "Hata", "Geçersiz kullanıcı adı veya parola.")
             cursor.close()
@@ -431,7 +413,7 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Veritabanı Hatası", f"Hata: {e}")
 
     def generate_qr(self):
-        username = self.register_username_entry.text()  # Kullanıcı adını register ekranından çek
+        username = self.register_username_entry.text() 
         display_qr(username, self.qr_label_2fa)
         print(username + " generate_qr username testi")
 
@@ -442,7 +424,7 @@ class MainWindow(QMainWindow):
         code = self.code_entry.text()
         if verify_code(username, code):
             QMessageBox.information(self, "Doğrulama Başarılı", "2FA kodu doğrulandı!")
-            self.stacked_widget.setCurrentWidget(self.tab_face)  # Yüz kaydı sekmesine geç
+            self.stacked_widget.setCurrentWidget(self.tab_face) 
         else:
             self.lock_windows_session()
             QMessageBox.warning(self, "Doğrulama Hatası", "Geçersiz 2FA kodu.")
@@ -456,25 +438,23 @@ class MainWindow(QMainWindow):
         print(username + " verify_code_login username testi")
         if verify_code(username, code):
             QMessageBox.information(self, "Doğrulama Başarılı", "2FA kodu doğrulandı!")
-            self.stacked_widget.setCurrentWidget(self.tab_face)  # Yüz kaydı sekmesine geç
+            self.stacked_widget.setCurrentWidget(self.tab_face)  
         else:
             QMessageBox.warning(self, "Doğrulama Hatası", "Geçersiz 2FA kodu.")
 
     def face_register(self):
         username = self.logged_in_username
-
-        # Yüz fotoğrafı çek
         temp_image_path = yuz_kayit(username)
 
         if temp_image_path is not None:
             try:
                 cursor = self.connection.cursor()
 
-                # Kullanıcının ID'sini al
+
                 cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
                 user_id = cursor.fetchone()[0]
 
-                # Yüz verisini veritabanına kaydet
+   
                 with open(temp_image_path, 'rb') as image_file:
                     image_data = image_file.read()
                     image_base64 = base64.b64encode(image_data).decode('utf-8')
@@ -483,19 +463,16 @@ class MainWindow(QMainWindow):
                 os.makedirs(temp_dir, exist_ok=True)
                 image_path = os.path.join(temp_dir, f"{username}_registered.jpg".encode('utf-8').decode('utf-8'))
 
-                # Kullanıcının yüz verisi olup olmadığını kontrol et
                 cursor.execute("SELECT id FROM face_data WHERE user_id = %s", (user_id,))
                 existing_face_data = cursor.fetchone()
 
                 if existing_face_data:
-                    # Var olan yüz verisini güncelle
                     cursor.execute("""
                         UPDATE face_data
                         SET image_path = %s, image = %s
                         WHERE user_id = %s
                     """, (image_path, image_base64, user_id))
                 else:
-                    # Yeni yüz verisi ekle
                     cursor.execute("""
                         INSERT INTO face_data (user_id, image_path, image)
                         VALUES (%s, %s, %s)
@@ -504,13 +481,11 @@ class MainWindow(QMainWindow):
                 self.connection.commit()
                 cursor.close()
 
-                # Görüntüyü geçici dosya sistemine kaydet
                 os.rename(temp_image_path, image_path)
 
                 QMessageBox.information(self, "Bilgi", "Yüzünüz başarıyla kaydedildi")
                 self.stacked_widget.setCurrentWidget(self.tab_face)
 
-                # İşlemler tamamlandıktan sonra geçici dosyaları sil
                 os.remove(image_path)
             except Error as e:
                 QMessageBox.warning(self, "Veritabanı Hatası", f"Hata: {e}")
@@ -530,7 +505,6 @@ class MainWindow(QMainWindow):
         try:
             cursor = self.connection.cursor()
 
-            # Kullanıcının ID'sini al
             cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
             user_id = cursor.fetchone()
 
@@ -540,7 +514,6 @@ class MainWindow(QMainWindow):
 
             user_id = user_id[0]
 
-            # Yüz verisini veritabanından çek
             cursor.execute("SELECT image FROM face_data WHERE user_id = %s", (user_id,))
             image_data = cursor.fetchone()
             cursor.close()
@@ -551,17 +524,15 @@ class MainWindow(QMainWindow):
 
             image_data = image_data[0]
 
-            # Base64 verisini çöz
+
             image_data = base64.b64decode(image_data)
             nparr = np.frombuffer(image_data, np.uint8)
             img_np = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-            # OpenCV görüntüsünü QImage'e dönüştür
             height, width, channel = img_np.shape
             bytes_per_line = 3 * width
             q_img = QImage(img_np.data, width, height, bytes_per_line, QImage.Format_RGB888).rgbSwapped()
 
-            # QImage'i QLabel'de göster
             self.show_face_label.setPixmap(QPixmap.fromImage(q_img))
             self.stacked_widget.setCurrentWidget(self.tab_face)
         except Error as e:
@@ -576,7 +547,6 @@ class MainWindow(QMainWindow):
         try:
             cursor = self.connection.cursor()
 
-            # Kullanıcının ID'sini al
             cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
             user = cursor.fetchone()
             if not user:
@@ -585,7 +555,6 @@ class MainWindow(QMainWindow):
 
             user_id = user[0]
 
-            # Yüz verisinin olup olmadığını kontrol et
             cursor.execute("SELECT image FROM face_data WHERE user_id = %s", (user_id,))
             face_data = cursor.fetchone()
             cursor.close()
@@ -596,7 +565,6 @@ class MainWindow(QMainWindow):
 
             registered_face_data = face_data[0]
 
-            # Yüz doğrulama işlemi
             if yuz_dogrula(registered_face_data, error=0):
                 self.face_recognition_success.emit()
                 self.stacked_widget.setCurrentWidget(self.tab_face)
