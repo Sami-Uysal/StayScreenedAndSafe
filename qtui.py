@@ -7,6 +7,7 @@ import time
 from threading import Thread
 from mysql.connector import Error
 from PyQt5.QtGui import QPixmap, QImage
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QWidget, QVBoxLayout, QHBoxLayout, QLabel, \
     QLineEdit, QPushButton, QStackedWidget, QDialog, QSpinBox, QSystemTrayIcon, QAction, QMenu
 from PyQt5.QtCore import Qt, pyqtSignal
@@ -69,26 +70,28 @@ class MainWindow(QMainWindow):
         QMessageBox.information(self, "Başarı", "Yüz başarıyla doğrulandı")
 
     def on_face_recognition_failure(self):
-        QMessageBox.warning(self, "Hata", "Yüz doğrulama başarısız oldu.Lütfen 2FA kodunu girin.")
+
         self.show()
         self.stacked_widget.setCurrentWidget(self.tab_2fa)
+        self.start_timer()
+        QMessageBox.warning(self, "Hata", "Yüz doğrulama başarısız oldu.Lütfen 2FA kodunu girin.")
 
     def setup_system_tray(self):
         self.tray_icon = QSystemTrayIcon(self)
         self.tray_icon.setIcon(QIcon('sssLogo.png'))
 
         show_action = QAction('Göster', self)
-        quit_action = QAction('Çık', self)
+        #quit_action = QAction('Çık', self)
         hide_action = QAction('Gizle', self)
 
         show_action.triggered.connect(self.show)
-        quit_action.triggered.connect(QApplication.instance().quit)
+       # quit_action.triggered.connect(self.prevent_close)
         hide_action.triggered.connect(self.hide)
 
         tray_menu = QMenu()
         tray_menu.addAction(show_action)
         tray_menu.addAction(hide_action)
-        tray_menu.addAction(quit_action)
+       # tray_menu.addAction(quit_action)
 
         self.tray_icon.setContextMenu(tray_menu)
         self.tray_icon.show()
@@ -120,7 +123,10 @@ class MainWindow(QMainWindow):
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
 
-
+    def prevent_close(self):
+        # Kullanıcı çıkış yapmak istediğinde uyarı ver ve çıkışı engelle
+        QMessageBox.warning(self, "Uyarı",
+                            "Çıkış yapmak için sağ tık menüsünden 'Çıkış'ı seçemezsiniz. Uygulamayı kapatmak için 'Gizle' seçeneğini kullanabilirsiniz.")
     def setup_tabs(self):
         self.setup_login_tab()
         self.setup_register_tab()
@@ -218,10 +224,15 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Veritabanı Hatası", f"Hata: {e}")
             return None
 
-
     def setup_2fa_tab(self):
         self.tab_2fa = QWidget()
         layout = QVBoxLayout()
+
+        # Timer labelı ve bilgilendirme metni
+        self.timer_label = QLabel(
+            "2FA kodunu giriniz, aksi takdirde oturum 30 saniye içinde kilitlenecek. Kalan süre: 30 saniye")
+        self.timer_label.setAlignment(Qt.AlignCenter)  # Ortala
+        layout.addWidget(self.timer_label)
 
         self.qr_label_2fa = QLabel()
         self.qr_label_2fa.setAlignment(Qt.AlignCenter)  # Ortala
@@ -248,9 +259,32 @@ class MainWindow(QMainWindow):
         self.tab_2fa.setLayout(layout)
         self.stacked_widget.addWidget(self.tab_2fa)
 
+        # Timer ayarlaması
+        self.countdown_timer = QTimer(self)
+        self.countdown_timer.timeout.connect(self.update_timer)
+        self.time_remaining = 30  # Oturum kilitlenme süresi saniye cinsinden
+
+    def start_timer(self):
+        # Timer'ı başlat
+        self.countdown_timer.start(1000)  # 1 saniye aralıklarla çalışacak
+
+    def update_timer(self):
+        if self.time_remaining > 0:
+            self.timer_label.setText(f"2FA kodunu giriniz, aksi takdirde oturum 30 saniye içinde kilitlenecek. Kalan süre: {self.time_remaining} saniye")
+            self.time_remaining -= 1
+        else:
+            self.timer_label.setText("Oturum kilitlendi!")
+            self.countdown_timer.stop()
+            self.lock_windows_session()  # Oturumu kitleme işlemi
+
+    def on_2fa_tab_selected(self):
+        # 2FA sekmesi seçildiğinde timer'ı başlat
+        self.start_timer()
+
     def setup_face_tab(self):
         self.tab_face = QWidget()
         layout = QVBoxLayout()
+
 
         self.face_register_button = QPushButton("Yüz Kayıt")
         self.face_register_button.clicked.connect(self.face_register)
@@ -410,8 +444,9 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Doğrulama Başarılı", "2FA kodu doğrulandı!")
             self.stacked_widget.setCurrentWidget(self.tab_face)  # Yüz kaydı sekmesine geç
         else:
-            QMessageBox.warning(self, "Doğrulama Hatası", "Geçersiz 2FA kodu.")
             self.lock_windows_session()
+            QMessageBox.warning(self, "Doğrulama Hatası", "Geçersiz 2FA kodu.")
+
 
     def lock_windows_session(self):
         ctypes.windll.user32.LockWorkStation()
