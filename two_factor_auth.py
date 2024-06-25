@@ -78,13 +78,15 @@ def display_qr(username, qr_label):
 def verify_code(username, code):
     key = fetch_user_secret_key(username)
     if not key:
-        return False, "Kullanıcı adı bulunamadı."
+        print("Kod bulunamadı")
+        return False
+
 
     totp = pyotp.TOTP(key)
     if totp.verify(code):
-        return True, "Giriş başarılı!"
+        return True
     else:
-        return False, "Kod hatalı. Tekrar deneyiniz."
+        return False
 
 # Kullanıcı adı verilen bir kullanıcının bilgilerini döndüren fonksiyon
 def get_user_info(username):
