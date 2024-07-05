@@ -8,8 +8,7 @@ from threading import Thread
 from mysql.connector import Error
 from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QWidget, QVBoxLayout, QHBoxLayout, QLabel, \
-    QLineEdit, QPushButton, QStackedWidget, QDialog, QSpinBox, QSystemTrayIcon, QAction, QMenu
+from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QIcon
 from two_factor_auth import generate_qr_code, display_qr, verify_code, save_secret_key
